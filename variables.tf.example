@@ -1,0 +1,34 @@
+variable "gcp_profile" {
+  description = "GCP Configuration"
+  type = map
+  default = {
+    project = "vmware-ysung"
+    region = "us-central1"
+    zone = "us-central1-c"
+    credentials = "~/.ssh/vmware-ysung.json"
+  }
+}
+variable "gce_vm" {
+  description = "GCE Instance Configuration"
+  type = map
+  default = {
+    instance_type = "n2-standard-2"
+    os_project = "centos-cloud"
+    os_family = "centos-8"
+    boot_disk_size = 200
+    ssh_user = "ysung"
+    ssh_pub = "~/.ssh/id_rsa.pub"
+  }
+}
+variable "gcp_dns_name" {
+  type = string
+  default = "ysung.vmware.lab"
+}
+variable "vpc_subnet_cidr" {
+  type = string
+  default = "192.168.20.0/24"
+}
+variable "pg_count" {
+  type = number
+  default = 1
+}

@@ -1,0 +1,95 @@
+---
+- hosts: all
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: Waiting for ssh
+    wait_for_connection:
+      timeout: 900
+  - name: Upgrade
+    dnf:
+      name: "*"
+      state: latest
+  - name: Disabled Firewalld
+    systemd:
+      name: firewalld
+      state: stopped
+      masked: yes
+      enabled: no
+  - name: Disable SElinux
+    selinux:
+      state: disabled
+- hosts: master 
+  gather_facts: no
+  become: yes
+  tasks: 
+  - name: Waiting for ssh
+    wait_for_connection:
+      timeout: 900
+  - name: adding ipa to etc hosts
+    lineinfile:
+      path: /etc/hosts
+      line: "192.168.20.4 myipa.ysung.vmware.lab myipa"
+      state: present
+  - name: Install pg_repo
+    dnf:
+      name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      state: present
+  - name: Disable centos-pgsql-module
+    shell: 'dnf -qy module disable postgresql'
+  - name: Install PG13
+    dnf:
+      name: ['postgresql13','postgresql13-server','freeipa-client','bind-utils']
+      state: present
+  - name: Init PG13
+    shell: '/usr/pgsql-13/bin/postgresql-13-setup initdb'
+  - name: Modify postgresql.conf 
+    lineinfile:
+      path: /var/lib/pgsql/13/data/postgresql.conf
+      regexp: "listen_addresses =*"
+      line: "listen_addresses = '*'"
+      state: present
+  - name: Setup PG13 systemd
+    systemd:
+      name: postgresql-13
+      state: started
+      enabled: yes
+      daemon_reload: yes
+- hosts: client 
+  gather_facts: no
+  become: yes
+  tasks: 
+  - name: Waiting for ssh
+    wait_for_connection:
+      timeout: 900
+  - name: adding ipa to etc hosts
+    lineinfile:
+      path: /etc/hosts
+      line: "192.168.20.4 myipa.ysung.vmware.lab myipa"
+      state: present
+  - name: Install pg_repo
+    dnf:
+      name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      state: present
+  - name: Disable centos-pgsql-module
+    shell: 'dnf -qy module disable postgresql'
+  - name: Install PG13
+    dnf:
+      name: ['postgresql13','freeipa-client','bind-utils']
+      state: present
+- hosts: ipa
+  gather_facts: no
+  become: yes
+  tasks:
+  - name: Installing idm module
+    dnf:
+      name: '@idm:DL1'
+      state: present
+  - name: Installing ipa-server
+    dnf:
+      name: ['freeipa-server','ipa-server-dns','bind-dyndb-ldap']
+      state: present
+  - name: Configuring ipa-server
+    shell: "ipa-server-install -U -p VMware1! -a VMware1! -n ysung.vmware.lab -r YSUNG.VMWARE.LAB --hostname=myipa.ysung.vmware.lab --setup-dns --no-host-dns --auto-reverse --allow-zone-overlap --auto-forwarder"
+
+#ipa-client-install --domain=ysung.vmware.lab --server=myipa.ysung.vmware.lab --realm=YSUNG.VMWARE.LAB -p admin -w VMware1! --hostname=master1.ysung.vmware.lab -U
